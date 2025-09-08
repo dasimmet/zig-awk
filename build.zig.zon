@@ -8,6 +8,10 @@
             .url = "git+https://github.com/onetrueawk/awk.git#d7f37646965ee26214da0e1d97f3c1d54349ae2d",
             .hash = "N-V-__8AAFMBaQCmtxd6CBzAIJ8sBzEIwVIQ1r9jsy-bkJ8K",
         },
+        .oyacc = .{
+            .url = "git+https://github.com/dasimmet/zig-oyacc.git#eccc2810b87d331b1003e8e7c03edc6e685a99ae",
+            .hash = "oyacc-6.6.0-08n9NIkJAAA8931XOQUrtZepXzp41el2ugS3YXBhLRpe",
+        },
     },
     .paths = .{""},
 }

@@ -1,0 +1,13 @@
+.{
+    .name = .awk,
+    .version = "0.0.1",
+    .minimum_zig_version = "0.15.1",
+    .fingerprint = 0xc4a2fe42a08b135,
+    .dependencies = .{
+        .awk = .{
+            .url = "git+https://github.com/onetrueawk/awk.git#d7f37646965ee26214da0e1d97f3c1d54349ae2d",
+            .hash = "N-V-__8AAFMBaQCmtxd6CBzAIJ8sBzEIwVIQ1r9jsy-bkJ8K",
+        },
+    },
+    .paths = .{""},
+}

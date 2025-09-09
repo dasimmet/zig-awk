@@ -20,7 +20,10 @@ pub fn build(b: *std.Build) void {
         }),
     });
     maketab.addIncludePath(awkgram_tab.dirname());
-    maketab.addCSourceFile(.{ .file = awk_dep.path("maketab.c") });
+    maketab.addCSourceFile(.{
+        .file = awk_dep.path("maketab.c"),
+        .flags = flags,
+    });
     const mt_run = b.addRunArtifact(maketab);
     mt_run.addFileArg(awkgram_tab.dirname().path(b, "awkgram.tab.h"));
     const w_proc = b.addWriteFiles();
@@ -33,8 +36,14 @@ pub fn build(b: *std.Build) void {
     });
     mod.addIncludePath(awk_dep.path(""));
     mod.addIncludePath(awkgram_tab.dirname());
-    mod.addCSourceFile(.{ .file = proctab });
-    mod.addCSourceFile(.{ .file = awkgram_tab });
+    mod.addCSourceFile(.{
+        .file = proctab,
+        .flags = flags,
+    });
+    mod.addCSourceFile(.{
+        .file = awkgram_tab,
+        .flags = flags,
+    });
     mod.addCSourceFiles(.{
         .files = &.{
             "tran.c",
@@ -46,7 +55,9 @@ pub fn build(b: *std.Build) void {
             "b.c",
         },
         .root = awk_dep.path(""),
+        .flags = flags,
     });
+    // mod.addIncludePath(b.path("src"));
 
     const exe = b.addExecutable(.{
         .name = "awk",
@@ -54,3 +65,18 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(exe);
 }
+
+const flags = &.{
+    "-fno-optimize-sibling-calls",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pedantic",
+    "-Wno-unused-parameter",
+    "-Wno-unused-but-set-variable",
+    "-Wno-strict-prototypes",
+    // "-Wno-inconsistent-dllimport",
+    // "-Wno-implicit-function-declaration",
+    // "-Wno-void-pointer-to-int-cast",
+    // "-Wno-int-to-pointer-cast",
+};

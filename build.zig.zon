@@ -13,5 +13,10 @@
             .hash = "oyacc-6.6.0-08n9NCsKAACFbsndggD_f7zdlLGfNoHEvR9JNLxRwlUC",
         },
     },
-    .paths = .{""},
+    .paths = .{
+        "build.zig.zon",
+        "build.zig",
+        "LICENSE",
+        "README.md",
+    },
 }

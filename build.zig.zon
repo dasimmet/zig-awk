@@ -5,8 +5,9 @@
     .fingerprint = 0xc4a2fe42a08b135,
     .dependencies = .{
         .awk = .{
-            .url = "git+https://github.com/onetrueawk/awk.git#d7f37646965ee26214da0e1d97f3c1d54349ae2d",
-            .hash = "N-V-__8AAFMBaQCmtxd6CBzAIJ8sBzEIwVIQ1r9jsy-bkJ8K",
+            // .path = "../gawk",
+            .url = "https://ftp.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz",
+            .hash = "N-V-__8AAOoyagHLI-GUcymIj9Yyrh3Fz7t6KTQd0a6fHGIW",
         },
         .oyacc = .{
             .url = "git+https://github.com/dasimmet/zig-oyacc.git#e1c49f8ae9b1722a6592198736147708d8ae9bf9",

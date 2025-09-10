@@ -32,29 +32,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-
-    // mod.addIncludePath(awk_dep.path(""));
-    // mod.addIncludePath(awkgram_tab.dirname());
-    // mod.addCSourceFile(.{ .file = proctab });
-    // mod.addCSourceFile(.{ .file = awkgram_tab });
-    // mod.addCSourceFiles(.{
-    //     .files = &.{
-    //         "tran.c",
-    //         "lib.c",
-    //         "run.c",
-    //         "lex.c",
-    //         "main.c",
-    //         "parse.c",
-    //         "b.c",
-    //     },
-    //     .root = awk_dep.path(""),
-    // });
     mod.addCSourceFiles(.{
         .files = Sources.root,
         .root = awk_dep.path(""),
-        .flags = flags,
     });
-    // mod.addIncludePath(b.path("src"));
 
     const libsupport = b.addLibrary(.{
         .name = "support",

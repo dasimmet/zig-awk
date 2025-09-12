@@ -1,66 +1,51 @@
 const std = @import("std");
+const zon = @import("build.zig.zon");
+const zon_version = std.SemanticVersion.parse(zon.version) catch unreachable;
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const awk_dep = b.dependency("awk", .{});
+    const not_macos = @as(?i64, switch (target.result.os.tag) {
+        .macos => null,
+        else => 1,
+    });
 
-    // const yacc_dep = b.dependency("oyacc", .{});
-
-    // const yacc = b.addRunArtifact(yacc_dep.artifact("yacc"));
-    // yacc.addArgs(&.{ "-d", "-b", "awkgram", "-o" });
-    // const awkgram_tab = yacc.addOutputFileArg("awkgram.tab.c");
-    // yacc.addFileArg(awk_dep.path("awkgram.y"));
-
-    // const maketab = b.addExecutable(.{
-    //     .name = "maketab",
-    //     .root_module = b.createModule(.{
-    //         .target = b.graph.host,
-    //         .optimize = .ReleaseSmall,
-    //         .link_libc = true,
-    //     }),
-    // });
-    // maketab.addIncludePath(awkgram_tab.dirname());
-    // maketab.addCSourceFile(.{ .file = awk_dep.path("maketab.c") });
-    // const mt_run = b.addRunArtifact(maketab);
-    // mt_run.addFileArg(awkgram_tab.dirname().path(b, "awkgram.tab.h"));
-    // const w_proc = b.addWriteFiles();
-    // const proctab = w_proc.addCopyFile(mt_run.captureStdOut(), "proctab.c");
     const config_h = b.addConfigHeader(.{
         .style = .{ .autoconf_undef = awk_dep.path("configh.in") },
         .include_path = "config.h",
     }, .{
-        .DYNAMIC = 1,
+        .DYNAMIC = null,
         .ENABLE_NLS = .gid_t,
-        .GETGROUPS_T = {},
+        .GETGROUPS_T = .gid_t,
         .GETPGRP_VOID = 1,
         .HAVE_ADDR_NO_RANDOMIZE = 1,
         .HAVE_ALARM = 1,
         .HAVE_ARPA_INET_H = 1,
-        .HAVE_ATEXIT = {},
+        .HAVE_ATEXIT = null,
         .HAVE_BTOWC = 1,
-        .HAVE_CFLOCALECOPYPREFERREDLANGUAGES = {},
-        .HAVE_CFPREFERENCESCOPYAPPVALUE = {},
+        .HAVE_CFLOCALECOPYPREFERREDLANGUAGES = null,
+        .HAVE_CFPREFERENCESCOPYAPPVALUE = null,
         .HAVE_CLOCK_GETTIME = 1,
-        .HAVE_C_BOOL = {},
+        .HAVE_C_BOOL = 1,
         .HAVE_C_VARARRAYS = 1,
         .HAVE_DCGETTEXT = 1,
-        .HAVE_DECL_TZNAME = {},
+        .HAVE_DECL_TZNAME = null,
         .HAVE_FCNTL_H = 1,
         .HAVE_FMOD = 1,
-        .HAVE_FWRITE_UNLOCKED = 1,
+        .HAVE_FWRITE_UNLOCKED = not_macos,
         .HAVE_GAI_STRERROR = 1,
         .HAVE_GETADDRINFO = 1,
         .HAVE_GETDTABLESIZE = 1,
         .HAVE_GETGRENT = 1,
-        .HAVE_GETGROUPS = 1,
+        .HAVE_GETGROUPS = null,
         .HAVE_GETTEXT = 1,
         .HAVE_GETTIMEOFDAY = 1,
         .HAVE_GRANTPT = 1,
-        .HAVE_HISTORY_LIST = {},
-        .HAVE_ICONV = {},
+        .HAVE_HISTORY_LIST = null,
+        .HAVE_ICONV = null,
         .HAVE_INTMAX_T = 1,
-        .HAVE_INTTYPES_H = {},
+        .HAVE_INTTYPES_H = null,
         .HAVE_ISASCII = 1,
         .HAVE_ISBLANK = 1,
         .HAVE_ISWCTYPE = 1,
@@ -69,26 +54,26 @@ pub fn build(b: *std.Build) void {
         .HAVE_LANGINFO_CODESET = 1,
         .HAVE_LC_MESSAGES = 1,
         .HAVE_LIBINTL_H = 1,
-        .HAVE_LIBREADLINE = {},
+        .HAVE_LIBREADLINE = null,
         .HAVE_LOCALE_H = 1,
         .HAVE_LONG_LONG_INT = 1,
         .HAVE_LSTAT = 1,
         .HAVE_MBRLEN = 1,
         .HAVE_MBRTOWC = 1,
-        .HAVE_MCHECK_H = 1,
+        .HAVE_MCHECK_H = null,
         .HAVE_MEMCMP = 1,
         .HAVE_MEMCPY = 1,
         .HAVE_MEMMOVE = 1,
         .HAVE_MEMORY_H = 1,
         .HAVE_MEMSET = 1,
-        .HAVE_MINIX_CONFIG_H = {},
+        .HAVE_MINIX_CONFIG_H = null,
         .HAVE_MKSTEMP = 1,
         .HAVE_MKTIME = 1,
-        .HAVE_MPFR = {},
+        .HAVE_MPFR = null,
         .HAVE_MTRACE = 1,
         .HAVE_NETDB_H = 1,
         .HAVE_NETINET_IN_H = 1,
-        .HAVE_PERSONALITY = 1,
+        .HAVE_PERSONALITY = not_macos,
         .HAVE_POSIX_OPENPT = 1,
         .HAVE_SETENV = 1,
         .HAVE_SETLOCALE = 1,
@@ -98,7 +83,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_SOCKADDR_STORAGE = 1,
         .HAVE_SOCKETS = 1,
         .HAVE_SPAWN_H = 1,
-        .HAVE_STDBOOL_H = 1,
+        .HAVE_STDBOOL_H = null,
         .HAVE_STDDEF_H = 1,
         .HAVE_STDINT_H = 1,
         .HAVE_STDIO_H = 1,
@@ -112,7 +97,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_STRINGS_H = 1,
         .HAVE_STRING_H = 1,
         .HAVE_STRNCASECMP = 1,
-        .HAVE_STROPTS_H = {},
+        .HAVE_STROPTS_H = null,
         .HAVE_STRSIGNAL = 1,
         .HAVE_STRTOD = 1,
         .HAVE_STRTOUL = 1,
@@ -123,7 +108,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_SYSTEM = 1,
         .HAVE_SYS_IOCTL_H = 1,
         .HAVE_SYS_PARAM_H = 1,
-        .HAVE_SYS_PERSONALITY_H = 1,
+        .HAVE_SYS_PERSONALITY_H = not_macos,
         .HAVE_SYS_SELECT_H = 1,
         .HAVE_SYS_SOCKET_H = 1,
         .HAVE_SYS_STAT_H = 1,
@@ -136,7 +121,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_TM_ZONE = 1,
         .HAVE_TOWLOWER = 1,
         .HAVE_TOWUPPER = 1,
-        .HAVE_TZNAME = {},
+        .HAVE_TZNAME = null,
         .HAVE_TZSET = 1,
         .HAVE_UINTMAX_T = 1,
         .HAVE_UNISTD_H = 1,
@@ -150,9 +135,9 @@ pub fn build(b: *std.Build) void {
         .HAVE_WCTYPE_H = 1,
         .HAVE_WCTYPE_T = 1,
         .HAVE_WINT_T = 1,
-        .HAVE__NSGETEXECUTABLEPATH = {},
-        .HAVE___ETOA_L = {},
-        .NO_LINT = {},
+        .HAVE__NSGETEXECUTABLEPATH = null,
+        .HAVE___ETOA_L = null,
+        .NO_LINT = null,
         .PACKAGE = "gawk",
         .PACKAGE_BUGREPORT = "bug-gawk@gnu.org",
         .PACKAGE_NAME = "GNU Awk",
@@ -167,20 +152,20 @@ pub fn build(b: *std.Build) void {
         .SIZEOF_VOID_P = 8,
         .STDC_HEADERS = 1,
         .SUPPLY_INTDIV = 1,
-        .TIME_T_IN_SYS_TYPES_H = {},
-        .TM_IN_SYS_TIME = {},
-        .USE_EBCDIC = {},
+        .TIME_T_IN_SYS_TYPES_H = null,
+        .TM_IN_SYS_TIME = null,
+        .USE_EBCDIC = null,
         .USE_PERSISTENT_MALLOC = 1,
         ._ALL_SOURCE = 1,
         ._DARWIN_C_SOURCE = 1,
         .__EXTENSIONS__ = 1,
         ._GNU_SOURCE = 1,
         ._HPUX_ALT_XOPEN_SOCKET_API = 1,
-        ._MINIX = {},
+        ._MINIX = null,
         ._NETBSD_SOURCE = 1,
         ._OPENBSD_SOURCE = 1,
-        ._POSIX_SOURCE = {},
-        ._POSIX_1_SOURCE = {},
+        ._POSIX_SOURCE = null,
+        ._POSIX_1_SOURCE = null,
         ._POSIX_PTHREAD_SEMANTICS = 1,
         .__STDC_WANT_IEC_60559_ATTRIBS_EXT__ = 1,
         .__STDC_WANT_IEC_60559_BFP_EXT__ = 1,
@@ -190,23 +175,23 @@ pub fn build(b: *std.Build) void {
         .__STDC_WANT_LIB_EXT2__ = 1,
         .__STDC_WANT_MATH_SPEC_FUNCS__ = 1,
         ._TANDEM_SOURCE = 1,
-        ._XOPEN_SOURCE = {},
-        .VERSION = "5.3.2",
-        ._FILE_OFFSET_BITS = {},
-        ._LARGE_FILES = {},
-        .__CHAR_UNSIGNED__ = {},
-        .__STDC_NO_VLA__ = {},
-        .@"const" = {},
-        .gid_t = {},
-        .@"inline" = {},
-        .intmax_t = {},
-        .pid_t = {},
+        ._XOPEN_SOURCE = null,
+        .VERSION = zon.version,
+        ._FILE_OFFSET_BITS = null,
+        ._LARGE_FILES = null,
+        .__CHAR_UNSIGNED__ = null,
+        .__STDC_NO_VLA__ = null,
+        .@"const" = null,
+        .gid_t = null,
+        .@"inline" = null,
+        .intmax_t = null,
+        .pid_t = null,
         .restrict = .__restrict__,
-        .size_t = {},
-        .socklen_t = {},
-        .ssize_t = {},
-        .uid_t = {},
-        .uintmax_t = {},
+        .size_t = null,
+        .socklen_t = null,
+        .ssize_t = null,
+        .uid_t = null,
+        .uintmax_t = null,
     });
 
     const mod = b.addModule("awk", .{
@@ -214,10 +199,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
+
     mod.addIncludePath(config_h.getOutputDir());
     mod.addCSourceFiles(.{
         .files = Sources.root,
         .root = awk_dep.path(""),
+        .flags = Sources.flags,
     });
 
     const libsupport = b.addLibrary(.{
@@ -232,26 +219,23 @@ pub fn build(b: *std.Build) void {
     libsupport.addCSourceFiles(.{
         .files = Sources.support,
         .root = awk_dep.path("support"),
-        .flags = &.{
-            "-DGAWK",
-            "-DHAVE_CONFIG_H",
-        },
+        .flags = Sources.flags,
     });
     libsupport.addIncludePath(awk_dep.path(""));
     libsupport.addIncludePath(awk_dep.path("support"));
-
     mod.linkLibrary(libsupport);
 
-    mod.addCSourceFiles(.{
-        .files = Sources.extension,
-        .root = awk_dep.path("extension"),
-    });
-    mod.addCSourceFiles(.{
-        .files = Sources.awklib,
-        .root = awk_dep.path("awklib"),
-    });
+    // mod.addCSourceFiles(.{
+    //     .files = Sources.awklib,
+    //     .root = awk_dep.path("awklib"),
+    //     .flags = Sources.flags,
+    // });
     mod.addIncludePath(awk_dep.path(""));
     mod.addIncludePath(awk_dep.path("support"));
+
+    // const libextension = build_extensions(b, awk_dep, target, optimize);
+    // mod.linkLibrary(libextension);
+    // mod.addIncludePath(awk_dep.path("extension"));
 
     const exe = b.addExecutable(.{
         .name = "awk",
@@ -261,6 +245,24 @@ pub fn build(b: *std.Build) void {
 }
 
 const Sources = struct {
+    const flags = &.{
+        "-std=c23",
+        // "-Wall",
+        // "-Wextra",
+        // "-Werror",
+        // // "-pedantic",
+        // "-Wno-error=unused",
+        // "-Wno-error=unused-parameter",
+        // "-Wno-error=sign-compare",
+        "-Wno-constant-conversion",
+        "-Wno-float-overflow-conversion",
+        "-DGAWK",
+        "-DHAVE_CONFIG_H",
+        "-DNDEBUG",
+        "-DSHLIBEXT=\"so\"",
+        "-DDEFLIBPATH=\"/usr/local/share/awk\"",
+        "-DDEFPATH=\"/usr/local/share/awk\"",
+    };
     const root = &.{
         "array.c",
         "awkgram.c",
@@ -322,9 +324,118 @@ const Sources = struct {
     };
 
     const awklib = &.{
-        "pwcat.c",
-        "grcat.c",
+        // "pwcat.c",
+        // "grcat.c",
         "eg/lib/grcat.c",
         "eg/lib/pwcat.c",
     };
 };
+
+pub fn build_extensions(b: *std.Build, awk_dep: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+    const ext_config_h = b.addConfigHeader(.{
+        .style = .{ .autoconf_undef = awk_dep.path("extension/configh.in") },
+        .include_path = "config.h",
+    }, .{
+        .DIR_FD_MEMBER_NAME = null,
+        .ENABLE_NLS = 1,
+        .HAVE_ADDR_NO_RANDOMIZE = 1,
+        .HAVE_CFLOCALECOPYPREFERREDLANGUAGES = null,
+        .HAVE_CFPREFERENCESCOPYAPPVALUE = null,
+        .HAVE_CLOCK_GETTIME = 1,
+        .HAVE_DCGETTEXT = 1,
+        .HAVE_DECL_DIRFD = 1,
+        .HAVE_DIRENT_H = 1,
+        .HAVE_DIRFD = 1,
+        .HAVE_DLFCN_H = 1,
+        .HAVE_FDOPENDIR = null,
+        .HAVE_FMOD = null,
+        .HAVE_FNMATCH = 1,
+        .HAVE_FNMATCH_H = 1,
+        .HAVE_GETDTABLESIZE = 1,
+        .HAVE_GETSYSTEMTIMEASFILETIME = null,
+        .HAVE_GETTEXT = 1,
+        .HAVE_GETTIMEOFDAY = 1,
+        .HAVE_ICONV = null,
+        .HAVE_INTTYPES_H = 1,
+        .HAVE_LANGINFO_CODESET = null,
+        .HAVE_LC_MESSAGES = null,
+        .HAVE_LIMITS_H = 1,
+        .HAVE_MINIX_CONFIG_H = null,
+        .HAVE_MPFR = null,
+        .HAVE_NANOSLEEP = 1,
+        .HAVE_NDIR_H = null,
+        .HAVE_SELECT = 1,
+        .HAVE_STATVFS = 1,
+        .HAVE_STDINT_H = 1,
+        .HAVE_STDIO_H = 1,
+        .HAVE_STDLIB_H = 1,
+        .HAVE_STRINGS_H = 1,
+        .HAVE_STRING_H = 1,
+        .HAVE_STRPTIME = 1,
+        .HAVE_STRUCT_STAT_ST_BLKSIZE = 1,
+        .HAVE_SYS_DIR_H = null,
+        .HAVE_SYS_MKDEV_H = null,
+        .HAVE_SYS_NDIR_H = null,
+        .HAVE_SYS_PARAM_H = 1,
+        .HAVE_SYS_SELECT_H = 1,
+        .HAVE_SYS_STATVFS_H = 1,
+        .HAVE_SYS_STAT_H = 1,
+        .HAVE_SYS_SYSMACROS_H = 1,
+        .HAVE_SYS_TIME_H = 1,
+        .HAVE_SYS_TYPES_H = 1,
+        .HAVE_UNISTD_H = 1,
+        .HAVE_WCHAR_H = 1,
+        .LT_OBJDIR = ".libs",
+        .PACKAGE = "gawk-extensions",
+        .PACKAGE_BUGREPORT = "bug-gawk@gnu.org",
+        .PACKAGE_NAME = "GNU Awk Bundled Extensions",
+        .PACKAGE_STRING = "GNU Awk Bundled Extensions 5.3.2",
+        .PACKAGE_TARNAME = "gawk-extensions",
+        .PACKAGE_URL = "https://www.gnu.org/software/gawk-extensions/",
+        .PACKAGE_VERSION = zon.version,
+        .SIZEOF_VOID_P = 8,
+        .STDC_HEADERS = 1,
+        .USE_PERSISTENT_MALLOC = 1,
+        ._ALL_SOURCE = 1,
+        ._DARWIN_C_SOURCE = 1,
+        .__EXTENSIONS__ = 1,
+        ._GNU_SOURCE = 1,
+        ._HPUX_ALT_XOPEN_SOCKET_API = 1,
+        ._MINIX = null,
+        ._NETBSD_SOURCE = 1,
+        ._OPENBSD_SOURCE = 1,
+        ._POSIX_SOURCE = null,
+        ._POSIX_1_SOURCE = null,
+        ._POSIX_PTHREAD_SEMANTICS = 1,
+        .__STDC_WANT_IEC_60559_ATTRIBS_EXT__ = 1,
+        .__STDC_WANT_IEC_60559_BFP_EXT__ = 1,
+        .__STDC_WANT_IEC_60559_DFP_EXT__ = 1,
+        .__STDC_WANT_IEC_60559_FUNCS_EXT__ = 1,
+        .__STDC_WANT_IEC_60559_TYPES_EXT__ = 1,
+        .__STDC_WANT_LIB_EXT2__ = 1,
+        .__STDC_WANT_MATH_SPEC_FUNCS__ = 1,
+        ._TANDEM_SOURCE = 1,
+        ._XOPEN_SOURCE = null,
+        .VERSION = zon.version,
+        ._FILE_OFFSET_BITS = null,
+        ._LARGE_FILES = null,
+        .@"inline" = null,
+    });
+    const libextension = b.addLibrary(.{
+        .name = "extension",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    libextension.addCSourceFiles(.{
+        .files = Sources.extension,
+        .root = awk_dep.path("extension"),
+        .flags = Sources.flags,
+    });
+    libextension.addIncludePath(awk_dep.path("extension"));
+    libextension.addIncludePath(awk_dep.path(""));
+    libextension.addIncludePath(ext_config_h.getOutputDir());
+    return  libextension;
+}

@@ -6,8 +6,17 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const awk_dep = b.dependency("awk", .{});
-    const not_macos = @as(?i64, switch (target.result.os.tag) {
-        .macos => null,
+
+    const target_linux = @as(?i64, switch (target.result.os.tag) {
+        .linux => 1,
+        else => null,
+    });
+
+    const target_not_macos_musl = @as(?i64, switch (target.result.os.tag) {
+        .macos => switch (target.result.abi.isMusl()) {
+            true => null,
+            else => 1,
+        },
         else => 1,
     });
 
@@ -33,7 +42,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_DECL_TZNAME = null,
         .HAVE_FCNTL_H = 1,
         .HAVE_FMOD = 1,
-        .HAVE_FWRITE_UNLOCKED = not_macos,
+        .HAVE_FWRITE_UNLOCKED = target_linux,
         .HAVE_GAI_STRERROR = 1,
         .HAVE_GETADDRINFO = 1,
         .HAVE_GETDTABLESIZE = 1,
@@ -73,7 +82,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_MTRACE = 1,
         .HAVE_NETDB_H = 1,
         .HAVE_NETINET_IN_H = 1,
-        .HAVE_PERSONALITY = not_macos,
+        .HAVE_PERSONALITY = target_linux,
         .HAVE_POSIX_OPENPT = 1,
         .HAVE_SETENV = 1,
         .HAVE_SETLOCALE = 1,
@@ -108,7 +117,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_SYSTEM = 1,
         .HAVE_SYS_IOCTL_H = 1,
         .HAVE_SYS_PARAM_H = 1,
-        .HAVE_SYS_PERSONALITY_H = not_macos,
+        .HAVE_SYS_PERSONALITY_H = target_linux,
         .HAVE_SYS_SELECT_H = 1,
         .HAVE_SYS_SOCKET_H = 1,
         .HAVE_SYS_STAT_H = 1,
@@ -155,7 +164,7 @@ pub fn build(b: *std.Build) void {
         .TIME_T_IN_SYS_TYPES_H = null,
         .TM_IN_SYS_TIME = null,
         .USE_EBCDIC = null,
-        .USE_PERSISTENT_MALLOC = 1,
+        .USE_PERSISTENT_MALLOC = target_not_macos_musl,
         ._ALL_SOURCE = 1,
         ._DARWIN_C_SOURCE = 1,
         .__EXTENSIONS__ = 1,
@@ -194,19 +203,6 @@ pub fn build(b: *std.Build) void {
         .uintmax_t = null,
     });
 
-    const mod = b.addModule("awk", .{
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-
-    mod.addIncludePath(config_h.getOutputDir());
-    mod.addCSourceFiles(.{
-        .files = Sources.root,
-        .root = awk_dep.path(""),
-        .flags = Sources.flags,
-    });
-
     const libsupport = b.addLibrary(.{
         .name = "support",
         .root_module = b.createModule(.{
@@ -223,15 +219,23 @@ pub fn build(b: *std.Build) void {
     });
     libsupport.addIncludePath(awk_dep.path(""));
     libsupport.addIncludePath(awk_dep.path("support"));
-    mod.linkLibrary(libsupport);
+    libsupport.installHeadersDirectory(awk_dep.path("support"), "", .{});
 
-    // mod.addCSourceFiles(.{
-    //     .files = Sources.awklib,
-    //     .root = awk_dep.path("awklib"),
-    //     .flags = Sources.flags,
-    // });
+    const mod = b.addModule("awk", .{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+
+    mod.addIncludePath(config_h.getOutputDir());
+    mod.addCSourceFiles(.{
+        .files = Sources.root,
+        .root = awk_dep.path(""),
+        .flags = Sources.flags,
+    });
+
+    mod.linkLibrary(libsupport);
     mod.addIncludePath(awk_dep.path(""));
-    mod.addIncludePath(awk_dep.path("support"));
 
     // const libextension = build_extensions(b, awk_dep, target, optimize);
     // mod.linkLibrary(libextension);
@@ -245,17 +249,61 @@ pub fn build(b: *std.Build) void {
 }
 
 const Sources = struct {
-    const flags = &.{
+    const flags = &(default_flags ++ disable_flags ++ macro_flags);
+    const default_flags = .{
         "-std=c23",
-        // "-Wall",
-        // "-Wextra",
-        // "-Werror",
-        // // "-pedantic",
-        // "-Wno-error=unused",
-        // "-Wno-error=unused-parameter",
-        // "-Wno-error=sign-compare",
+        "-Wall",
+        "-Wextra",
+        // "-Weverything",
+        "-Werror",
+        "-pedantic",
+    };
+    const disable_flags = .{
+        "-Wno-anon-enum-enum-conversion",
+        "-Wno-assign-enum",
+        "-Wno-bitwise-instead-of-logical",
+        "-Wno-cast-align",
+        "-Wno-cast-function-type-mismatch",
+        "-Wno-cast-qual",
+        "-Wno-comma",
+        "-Wno-conditional-uninitialized",
         "-Wno-constant-conversion",
+        "-Wno-covered-switch-default",
+        "-Wno-declaration-after-statement",
+        "-Wno-extra-semi-stmt",
         "-Wno-float-overflow-conversion",
+        "-Wno-format-nonliteral",
+        "-Wno-format",
+        "-Wno-implicit-const-int-float-conversion",
+        "-Wno-implicit-fallthrough",
+        "-Wno-implicit-int-conversion",
+        "-Wno-missing-field-initializers",
+        "-Wno-missing-prototypes",
+        "-Wno-missing-variable-declarations",
+        "-Wno-padded",
+        "-Wno-pre-c11-compat",
+        "-Wno-pre-c23-compat",
+        "-Wno-redundant-parens",
+        "-Wno-reserved-identifier",
+        "-Wno-reserved-macro-identifier",
+        "-Wno-shadow",
+        "-Wno-shift-count-overflow",
+        "-Wno-sign-compare",
+        "-Wno-sign-conversion",
+        "-Wno-switch-default",
+        "-Wno-switch-enum",
+        "-Wno-tautological-constant-compare",
+        "-Wno-tautological-value-range-compare",
+        "-Wno-undef",
+        "-Wno-unreachable-code",
+        "-Wno-unsafe-buffer-usage",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-macros",
+        "-Wno-unused-parameter",
+        "-Wno-used-but-marked-unused",
+        "-Wno-vla",
+    };
+    const macro_flags = .{
         "-DGAWK",
         "-DHAVE_CONFIG_H",
         "-DNDEBUG",
@@ -322,16 +370,14 @@ const Sources = struct {
         "rwarray.c",
         "time.c",
     };
-
-    const awklib = &.{
-        // "pwcat.c",
-        // "grcat.c",
-        "eg/lib/grcat.c",
-        "eg/lib/pwcat.c",
-    };
 };
 
-pub fn build_extensions(b: *std.Build, awk_dep: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+pub fn build_extensions(
+    b: *std.Build,
+    awk_dep: *std.Build.Dependency,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Step.Compile {
     const ext_config_h = b.addConfigHeader(.{
         .style = .{ .autoconf_undef = awk_dep.path("extension/configh.in") },
         .include_path = "config.h",
@@ -437,5 +483,5 @@ pub fn build_extensions(b: *std.Build, awk_dep: *std.Build.Dependency, target: s
     libextension.addIncludePath(awk_dep.path("extension"));
     libextension.addIncludePath(awk_dep.path(""));
     libextension.addIncludePath(ext_config_h.getOutputDir());
-    return  libextension;
+    return libextension;
 }

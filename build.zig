@@ -7,6 +7,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const awk_dep = b.dependency("awk", .{});
 
+    const target_ptr_bytes = target.result.ptrBitWidth() / 8;
     const target_linux = @as(?i64, switch (target.result.os.tag) {
         .linux => 1,
         else => null,
@@ -20,18 +21,34 @@ pub fn build(b: *std.Build) void {
         else => 1,
     });
 
+    const target_not_windows = @as(?i64, switch (target.result.os.tag) {
+        .windows => null,
+        else => 1,
+    });
+
+    // const target_windows = @as(?i64, switch (target.result.os.tag) {
+    //     .windows => 1,
+    //     else => null,
+    // });
+
     const config_h = b.addConfigHeader(.{
         .style = .{ .autoconf_undef = awk_dep.path("configh.in") },
         .include_path = "config.h",
     }, .{
         .DYNAMIC = null,
-        .ENABLE_NLS = .gid_t,
-        .GETGROUPS_T = .gid_t,
+        .ENABLE_NLS = @as(?enum { gid_t }, switch (target.result.os.tag) {
+            .windows => null,
+            else => .gid_t,
+        }),
+        .GETGROUPS_T = @as(enum { gid_t, int }, switch (target.result.os.tag) {
+            .windows => .int,
+            else => .gid_t,
+        }),
         .GETPGRP_VOID = 1,
-        .HAVE_ADDR_NO_RANDOMIZE = 1,
+        .HAVE_ADDR_NO_RANDOMIZE = target_not_windows,
         .HAVE_ALARM = 1,
-        .HAVE_ARPA_INET_H = 1,
-        .HAVE_ATEXIT = null,
+        .HAVE_ARPA_INET_H = target_not_windows,
+        .HAVE_ATEXIT = 1,
         .HAVE_BTOWC = 1,
         .HAVE_CFLOCALECOPYPREFERREDLANGUAGES = null,
         .HAVE_CFPREFERENCESCOPYAPPVALUE = null,
@@ -123,7 +140,7 @@ pub fn build(b: *std.Build) void {
         .HAVE_SYS_STAT_H = 1,
         .HAVE_SYS_TIME_H = 1,
         .HAVE_SYS_TYPES_H = 1,
-        .HAVE_SYS_WAIT_H = 1,
+        .HAVE_SYS_WAIT_H = target_not_windows,
         .HAVE_TERMIOS_H = 1,
         .HAVE_TIMEGM = 1,
         .HAVE_TMPFILE = 1,
@@ -157,8 +174,8 @@ pub fn build(b: *std.Build) void {
         .PRINTF_HAS_A_FORMAT = 1,
         .PRINTF_HAS_F_FORMAT = 1,
         .SIZEOF_UNSIGNED_INT = 4,
-        .SIZEOF_UNSIGNED_LONG = 8,
-        .SIZEOF_VOID_P = 8,
+        .SIZEOF_UNSIGNED_LONG = target_ptr_bytes,
+        .SIZEOF_VOID_P = target_ptr_bytes,
         .STDC_HEADERS = 1,
         .SUPPLY_INTDIV = 1,
         .TIME_T_IN_SYS_TYPES_H = null,
@@ -213,9 +230,9 @@ pub fn build(b: *std.Build) void {
     });
     libsupport.addIncludePath(config_h.getOutputDir());
     libsupport.addCSourceFiles(.{
-        .files = Sources.support,
+        .files = Sources.Support.common,
         .root = awk_dep.path("support"),
-        .flags = Sources.flags,
+        .flags = Sources.flags(target),
     });
     libsupport.addIncludePath(awk_dep.path(""));
     libsupport.addIncludePath(awk_dep.path("support"));
@@ -229,13 +246,43 @@ pub fn build(b: *std.Build) void {
 
     mod.addIncludePath(config_h.getOutputDir());
     mod.addCSourceFiles(.{
-        .files = Sources.root,
+        .files = Sources.Root.common,
         .root = awk_dep.path(""),
-        .flags = Sources.flags,
+        .flags = Sources.flags(target),
     });
 
     mod.linkLibrary(libsupport);
     mod.addIncludePath(awk_dep.path(""));
+
+    if (target.result.os.tag == .windows) {
+        libsupport.addIncludePath(awk_dep.path("pc"));
+        // libsupport.root_module.addCMacro("__MINGW__", "");
+        // mod.addCMacro("__MINGW__", "");
+        mod.addIncludePath(awk_dep.path("pc"));
+        mod.addCSourceFiles(.{
+            .files = Sources.windows,
+            .root = awk_dep.path("pc"),
+            .flags = Sources.flags(target),
+        });
+        mod.addCSourceFiles(.{
+            .files = Sources.Root.posix,
+            .root = awk_dep.path(""),
+            .flags = &.{
+                "-std=c99",
+            },
+        });
+    } else {
+        mod.addCSourceFiles(.{
+            .files = Sources.Root.posix,
+            .root = awk_dep.path(""),
+            .flags = Sources.flags(target),
+        });
+        libsupport.addCSourceFiles(.{
+            .files = Sources.Support.unix,
+            .root = awk_dep.path("support"),
+            .flags = Sources.flags(target),
+        });
+    }
 
     // const libextension = build_extensions(b, awk_dep, target, optimize);
     // mod.linkLibrary(libextension);
@@ -249,109 +296,133 @@ pub fn build(b: *std.Build) void {
 }
 
 const Sources = struct {
-    const flags = &(default_flags ++ disable_flags ++ macro_flags);
-    const default_flags = .{
-        "-std=c23",
-        "-Wall",
-        "-Wextra",
-        // "-Weverything",
-        "-Werror",
-        "-pedantic",
-    };
-    const disable_flags = .{
-        "-Wno-anon-enum-enum-conversion",
-        "-Wno-assign-enum",
-        "-Wno-bitwise-instead-of-logical",
-        "-Wno-cast-align",
-        "-Wno-cast-function-type-mismatch",
-        "-Wno-cast-qual",
-        "-Wno-comma",
-        "-Wno-conditional-uninitialized",
-        "-Wno-constant-conversion",
-        "-Wno-covered-switch-default",
-        "-Wno-declaration-after-statement",
-        "-Wno-extra-semi-stmt",
-        "-Wno-float-overflow-conversion",
-        "-Wno-format-nonliteral",
-        "-Wno-format",
-        "-Wno-implicit-const-int-float-conversion",
-        "-Wno-implicit-fallthrough",
-        "-Wno-implicit-int-conversion",
-        "-Wno-missing-field-initializers",
-        "-Wno-missing-prototypes",
-        "-Wno-missing-variable-declarations",
-        "-Wno-padded",
-        "-Wno-pre-c11-compat",
-        "-Wno-pre-c23-compat",
-        "-Wno-redundant-parens",
-        "-Wno-reserved-identifier",
-        "-Wno-reserved-macro-identifier",
-        "-Wno-shadow",
-        "-Wno-shift-count-overflow",
-        "-Wno-sign-compare",
-        "-Wno-sign-conversion",
-        "-Wno-switch-default",
-        "-Wno-switch-enum",
-        "-Wno-tautological-constant-compare",
-        "-Wno-tautological-value-range-compare",
-        "-Wno-undef",
-        "-Wno-unreachable-code",
-        "-Wno-unsafe-buffer-usage",
-        "-Wno-unused-but-set-variable",
-        "-Wno-unused-macros",
-        "-Wno-unused-parameter",
-        "-Wno-used-but-marked-unused",
-        "-Wno-vla",
-    };
-    const macro_flags = .{
-        "-DGAWK",
-        "-DHAVE_CONFIG_H",
-        "-DNDEBUG",
-        "-DSHLIBEXT=\"so\"",
-        "-DDEFLIBPATH=\"/usr/local/share/awk\"",
-        "-DDEFPATH=\"/usr/local/share/awk\"",
-    };
-    const root = &.{
-        "array.c",
-        "awkgram.c",
-        "builtin.c",
-        "cint_array.c",
-        "command.c",
-        "debug.c",
-        "eval.c",
-        "ext.c",
-        "field.c",
-        "floatcomp.c",
-        "gawkapi.c",
-        "gawkmisc.c",
-        "int_array.c",
-        "io.c",
-        "main.c",
-        "mpfr.c",
-        "msg.c",
-        "node.c",
-        "printf.c",
-        "profile.c",
-        "re.c",
-        "replace.c",
-        "str_array.c",
-        "symbol.c",
-        "version.c",
+    pub fn flags(target: std.Build.ResolvedTarget) []const []const u8 {
+        return switch (target.result.os.tag) {
+            .windows => &(Flags.default ++ Flags.unwarn ++ Flags.macro_common ++ Flags.macro_windows),
+            else => &(Flags.default ++ Flags.unwarn ++ Flags.macro_common ++ Flags.macro_posix),
+        };
+    }
+
+    const Flags = struct {
+        const default = .{
+            "-std=c23",
+            "-Wall",
+            "-Wextra",
+            // "-Weverything",
+            "-Werror",
+            "-pedantic",
+        };
+        const unwarn = .{
+            "-Wno-anon-enum-enum-conversion",
+            "-Wno-assign-enum",
+            "-Wno-bitwise-instead-of-logical",
+            "-Wno-cast-align",
+            "-Wno-cast-function-type-mismatch",
+            "-Wno-cast-qual",
+            "-Wno-comma",
+            "-Wno-conditional-uninitialized",
+            "-Wno-constant-conversion",
+            "-Wno-covered-switch-default",
+            "-Wno-declaration-after-statement",
+            "-Wno-extra-semi-stmt",
+            "-Wno-float-overflow-conversion",
+            "-Wno-format-nonliteral",
+            "-Wno-format",
+            "-Wno-implicit-const-int-float-conversion",
+            "-Wno-implicit-fallthrough",
+            "-Wno-implicit-int-conversion",
+            "-Wno-missing-field-initializers",
+            "-Wno-missing-prototypes",
+            "-Wno-missing-variable-declarations",
+            "-Wno-padded",
+            "-Wno-pre-c11-compat",
+            "-Wno-pre-c23-compat",
+            "-Wno-redundant-parens",
+            "-Wno-reserved-identifier",
+            "-Wno-reserved-macro-identifier",
+            "-Wno-shadow",
+            "-Wno-shift-count-overflow",
+            "-Wno-sign-compare",
+            "-Wno-sign-conversion",
+            "-Wno-switch-default",
+            "-Wno-switch-enum",
+            "-Wno-tautological-constant-compare",
+            "-Wno-tautological-value-range-compare",
+            "-Wno-undef",
+            "-Wno-unreachable-code",
+            "-Wno-unsafe-buffer-usage",
+            "-Wno-unused-but-set-variable",
+            "-Wno-unused-macros",
+            "-Wno-unused-parameter",
+            "-Wno-used-but-marked-unused",
+            "-Wno-vla",
+        };
+        const macro_common = .{
+            "-DGAWK",
+            "-DHAVE_CONFIG_H",
+            "-DNDEBUG",
+        };
+        const macro_posix = .{
+            "-DSHLIBEXT=\"so\"",
+            "-DDEFLIBPATH=\"/usr/local/share/awk\"",
+            "-DDEFPATH=\"/usr/local/share/awk\"",
+        };
+        const macro_windows = .{
+            "-DSHLIBEXT=\"so\"",
+            "-DDEFLIBPATH=\"/usr/local/share/awk\"",
+            "-DDEFPATH=\"/usr/local/share/awk\"",
+        };
     };
 
-    const support = &.{
-        "dfa.c",
-        "getopt.c",
-        "getopt1.c",
-        "localeinfo.c",
-        "random.c",
-        "regex.c",
-        "malloc/dynarray_at_failure.c",
-        "malloc/dynarray_emplace_enlarge.c",
-        "malloc/dynarray_finalize.c",
-        "malloc/dynarray_resize.c",
-        "malloc/dynarray_resize_clear.c",
-        "pma.c",
+    const Root = struct {
+        const common = &.{
+            "array.c",
+            "awkgram.c",
+            "builtin.c",
+            "cint_array.c",
+            "command.c",
+            "debug.c",
+            "eval.c",
+            "ext.c",
+            "field.c",
+            "floatcomp.c",
+            "gawkapi.c",
+            "int_array.c",
+            "io.c",
+            "main.c",
+            "mpfr.c",
+            "msg.c",
+            "node.c",
+            "printf.c",
+            "profile.c",
+            "re.c",
+            "replace.c",
+            "str_array.c",
+            "symbol.c",
+            "version.c",
+        };
+        const posix = &.{
+            "gawkmisc.c",
+        };
+    };
+
+    const Support = struct {
+        const common = &.{
+            "dfa.c",
+            "getopt.c",
+            "getopt1.c",
+            "localeinfo.c",
+            "random.c",
+            "regex.c",
+            "malloc/dynarray_at_failure.c",
+            "malloc/dynarray_emplace_enlarge.c",
+            "malloc/dynarray_finalize.c",
+            "malloc/dynarray_resize.c",
+            "malloc/dynarray_resize_clear.c",
+        };
+        const unix = &.{
+            "pma.c",
+        };
     };
     const extension = &.{
         "testext.c",
@@ -370,14 +441,21 @@ const Sources = struct {
         "rwarray.c",
         "time.c",
     };
+
+    const windows = &.{
+        "getid.c",
+        "popen.c",
+    };
 };
 
+/// TODO: extensions are not built yet
 pub fn build_extensions(
     b: *std.Build,
     awk_dep: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Step.Compile {
+    const target_ptr_bytes = target.result.ptrBitWidth() / 8;
     const ext_config_h = b.addConfigHeader(.{
         .style = .{ .autoconf_undef = awk_dep.path("extension/configh.in") },
         .include_path = "config.h",
@@ -439,7 +517,7 @@ pub fn build_extensions(
         .PACKAGE_TARNAME = "gawk-extensions",
         .PACKAGE_URL = "https://www.gnu.org/software/gawk-extensions/",
         .PACKAGE_VERSION = zon.version,
-        .SIZEOF_VOID_P = 8,
+        .SIZEOF_VOID_P = target_ptr_bytes,
         .STDC_HEADERS = 1,
         .USE_PERSISTENT_MALLOC = 1,
         ._ALL_SOURCE = 1,
@@ -478,7 +556,7 @@ pub fn build_extensions(
     libextension.addCSourceFiles(.{
         .files = Sources.extension,
         .root = awk_dep.path("extension"),
-        .flags = Sources.flags,
+        .flags = Sources.flags(target),
     });
     libextension.addIncludePath(awk_dep.path("extension"));
     libextension.addIncludePath(awk_dep.path(""));

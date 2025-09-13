@@ -91,7 +91,10 @@ pub fn build(b: *std.Build) void {
         .SIZE_T_STDDEF_H = 1,
         .SIZE_T_TYPES_H = null,
         .STDC_HEADERS = 1,
-        .SYSTEM_NAME = "linux-gnu",
+        .SYSTEM_NAME = b.fmt("{s}-{s}", .{
+            @tagName(target.result.cpu.arch),
+            @tagName(target.result.os.tag),
+        }),
         .TURN_OFF_FPE_TRAPS = null,
         .TURN_ON_FPE_TRAPS = null,
         .USE_IEEEFP_H = null,

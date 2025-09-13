@@ -20,8 +20,23 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v2.0.5
 
-      - name: Run `build`
-        run: zig build -Dtarget=x86_64-linux-musl install
+      - name: Run fmt
+        run: zig build fmt
+
+      - name: check git diff
+        run: git diff --exit-code
+
+      - name: Run `build` linux
+        run: zig build -Dtarget=x86_64-linux-musl --prefix zig-out/x86_64-linux-musl install
+
+      - name: Run `build` macos
+        run: zig build -Dtarget=x86_64-macos --prefix zig-out/x86_64-macos install
+
+      - name: Run `build` windows
+        run: zig build -Dtarget=x86_64-windows --prefix zig-out/x86_64-windows install
+
+      - name: check git diff
+        run: git diff --exit-code
 
       - uses: actions/upload-artifact@v4
         with:

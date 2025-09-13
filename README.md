@@ -1,6 +1,9 @@
-# zig build for the one true AWK
+# zig build for MAWK
 
-<https://github.com/onetrueawk/awk.git>
+awk interpreter built with zig. I switched from `nawk` to `mawk` as it
+seems to cross-compile easier.
+
+<https://invisible-island.net/mawk>
 
 ```
 zig build

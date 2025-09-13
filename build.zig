@@ -180,6 +180,14 @@ pub fn build(b: *std.Build) void {
         .root_module = mod,
     });
     b.installArtifact(exe);
+
+    const fmt = b.addFmt(.{
+        .paths = &.{
+            "build.zig",
+            "build.zig.zon",
+        },
+    });
+    b.step("fmt", "zig fmt").dependOn(&fmt.step);
 }
 
 const flags = &.{

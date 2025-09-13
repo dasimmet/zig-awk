@@ -10,11 +10,14 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     mod.addIncludePath(awk_dep.path(""));
+
+    const only_posix: ?i64 = if (target.result.os.tag == .windows) null else 1;
+
     const config_h = b.addConfigHeader(.{
         .style = .{ .autoconf_undef = awk_dep.path("config_h.in") },
         .include_path = "config.h",
     }, .{
-        .DECL_ENVIRON = 1,
+        .DECL_ENVIRON = only_posix,
         .FPE_TRAPS_ON = null,
         .GCC_NORETURN = null,
         .GCC_PRINTFLIKE = null,
@@ -22,16 +25,16 @@ pub fn build(b: *std.Build) void {
         .GCC_UNUSED = null,
         .HAVE_BSD_STDLIB_H = null,
         .HAVE_CLOCK_GETTIME = 1,
-        .HAVE_ENVIRON = 1,
+        .HAVE_ENVIRON = only_posix,
         .HAVE_ERRNO_H = 1,
         .HAVE_FCNTL_H = 1,
-        .HAVE_FORK = 1,
+        .HAVE_FORK = only_posix,
         .HAVE_FSEEKO = 1,
         .HAVE_FSTAT = 1,
         .HAVE_GETTIMEOFDAY = null,
         .HAVE_INT64_T = 1,
         .HAVE_INTTYPES_H = 1,
-        .HAVE_ISINF = 1,
+        .HAVE_ISINF = only_posix,
         .HAVE_ISNAN = 1,
         .HAVE_LIMITS_H = 1,
         .HAVE_LONG_LONG = 1,
@@ -39,13 +42,13 @@ pub fn build(b: *std.Build) void {
         .HAVE_MATH__LIB_VERSION = null,
         .HAVE_MEMORY_H = 1,
         .HAVE_MKTIME = 1,
-        .HAVE_PIPE = 1,
-        .HAVE_REAL_PIPES = 1,
+        .HAVE_PIPE = only_posix,
+        .HAVE_REAL_PIPES = only_posix,
         .HAVE_REGEXPR_H_FUNCS = null,
         .HAVE_REGEXP_H_FUNCS = null,
         .HAVE_REGEX_H_FUNCS = null,
-        .HAVE_SIGACTION = 1,
-        .HAVE_SIGACTION_SA_SIGACTION = 1,
+        .HAVE_SIGACTION = only_posix,
+        .HAVE_SIGACTION_SA_SIGACTION = only_posix,
         .HAVE_SIGINFO_H = null,
         .HAVE_STDINT_H = 1,
         .HAVE_STDLIB_H = 1,
@@ -55,20 +58,26 @@ pub fn build(b: *std.Build) void {
         .HAVE_STRTOD_OVF_BUG = null,
         .HAVE_SYS_STAT_H = 1,
         .HAVE_SYS_TYPES_H = 1,
-        .HAVE_SYS_WAIT_H = 1,
+        .HAVE_SYS_WAIT_H = null,
         .HAVE_TDESTROY = null,
         .HAVE_TSEARCH = 1,
         .HAVE_UINT64_T = 1,
         .HAVE_UNISTD_H = 1,
-        .HAVE_WAIT = 1,
+        .HAVE_WAIT = only_posix,
         .LOCALE = 1,
         .LOCAL_REGEXP = 1,
-        .MAWK_RAND_MAX = .INT_MAX,
+        .MAWK_RAND_MAX = @as(enum { INT_MAX, RAND_MAX }, switch (target.result.os.tag) {
+            .windows => .RAND_MAX,
+            else => .INT_MAX,
+        }),
         .MAX__INT = null,
         .MAX__LONG = null,
         .MAX__UINT = null,
         .MAX__ULONG = null,
-        .NAME_RANDOM = "srand/rand",
+        .NAME_RANDOM = switch (target.result.os.tag) {
+            .windows => "srand/rand",
+            else => "srandom/random",
+        },
         .NOINFO_SIGFPE = null,
         .NO_GAWK_OPTIONS = null,
         .NO_INIT_SRAND = null,
@@ -88,16 +97,16 @@ pub fn build(b: *std.Build) void {
         .USE_IEEEFP_H = null,
         .YY_NO_LEAKS = null,
         .@"const" = null,
-        .mawk_rand = .rand,
-        .mawk_srand = .srand,
+        .mawk_rand = null,
+        .mawk_srand = null,
     });
     mod.addIncludePath(config_h.getOutputDir());
     mod.addCMacro("_XOPEN_SOURCE", "500");
     mod.addCMacro("_DEFAULT_SOURCE", "");
     mod.addCMacro("_HAVE_CONFIG_H", "");
 
-    const makeh_wf = b.addWriteFiles();
-    mod.addIncludePath(makeh_wf.getDirectory());
+    const makesrc_wf = b.addWriteFiles();
+    mod.addIncludePath(makesrc_wf.getDirectory().path(b, "include"));
 
     const makebits = b.addExecutable(.{
         .name = "makebits",
@@ -110,8 +119,7 @@ pub fn build(b: *std.Build) void {
     makebits.addIncludePath(config_h.getOutputDir());
     makebits.addCSourceFile(.{ .file = awk_dep.path("makebits.c") });
     const makebits_run = b.addRunArtifact(makebits);
-    _ = makeh_wf.addCopyFile(makebits_run.captureStdOut(), "makebits.h");
-    // mod.addIncludePath(makebits_h.dirname());
+    _ = makesrc_wf.addCopyFile(makebits_run.captureStdOut(), "include/makebits.h");
 
     const makescan = b.addExecutable(.{
         .name = "makescan",
@@ -125,7 +133,7 @@ pub fn build(b: *std.Build) void {
     makescan.addIncludePath(awk_dep.path(""));
     makescan.addCSourceFile(.{ .file = awk_dep.path("makescan.c") });
     const makescan_run = b.addRunArtifact(makescan);
-    const makescan_c = makeh_wf.addCopyFile(makescan_run.captureStdOut(), "scancode.c");
+    const makescan_c = makesrc_wf.addCopyFile(makescan_run.captureStdOut(), "src/scancode.c");
     mod.addCSourceFile(.{
         .file = makescan_c,
         .flags = flags,
@@ -178,13 +186,9 @@ const flags = &.{
     "-fno-optimize-sibling-calls",
     "-Wall",
     "-Wextra",
-    // "-Werror",
-    // "-pedantic",
-    // "-Wno-unused-parameter",
-    // "-Wno-unused-but-set-variable",
-    // "-Wno-strict-prototypes",
-    // "-Wno-inconsistent-dllimport",
-    // "-Wno-implicit-function-declaration",
-    // "-Wno-void-pointer-to-int-cast",
-    // "-Wno-int-to-pointer-cast",
+    "-Werror",
+    "-pedantic",
+    "-Wno-unused-parameter",
+    "-Wno-format",
+    "-Wno-implicit-function-declaration",
 };

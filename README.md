@@ -1,7 +1,6 @@
 # zig build for MAWK
 
-awk interpreter built with zig. I switched from `nawk` to `mawk` as it
-seems to cross-compile easier.
+awk interpreter built with zig.
 
 <https://invisible-island.net/mawk>
 

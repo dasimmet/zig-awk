@@ -111,32 +111,36 @@ pub fn build(b: *std.Build) void {
     const makesrc_wf = b.addWriteFiles();
     mod.addIncludePath(makesrc_wf.getDirectory().path(b, "include"));
 
-    const makebits = b.addExecutable(.{
-        .name = "makebits",
-        .root_module = b.createModule(.{
-            .target = b.graph.host,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
+    const makebits = b.createModule(.{
+        .target = b.graph.host,
+        .optimize = optimize,
+        .link_libc = true,
     });
     makebits.addIncludePath(config_h.getOutputDir());
     makebits.addCSourceFile(.{ .file = awk_dep.path("makebits.c") });
-    const makebits_run = b.addRunArtifact(makebits);
-    _ = makesrc_wf.addCopyFile(makebits_run.captureStdOut(), "include/makebits.h");
 
-    const makescan = b.addExecutable(.{
-        .name = "makescan",
-        .root_module = b.createModule(.{
-            .target = b.graph.host,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
+    const makebits_exe = b.addExecutable(.{
+        .name = "makebits",
+        .root_module = makebits,
+    });
+    const makebits_run = b.addRunArtifact(makebits_exe);
+    _ = makesrc_wf.addCopyFile(makebits_run.captureStdOut(.{}), "include/makebits.h");
+
+    const makescan = b.createModule(.{
+        .target = b.graph.host,
+        .optimize = optimize,
+        .link_libc = true,
     });
     makescan.addIncludePath(config_h.getOutputDir());
     makescan.addIncludePath(awk_dep.path(""));
     makescan.addCSourceFile(.{ .file = awk_dep.path("makescan.c") });
-    const makescan_run = b.addRunArtifact(makescan);
-    const makescan_c = makesrc_wf.addCopyFile(makescan_run.captureStdOut(), "src/scancode.c");
+
+    const makescan_exe = b.addExecutable(.{
+        .name = "makescan",
+        .root_module = makescan,
+    });
+    const makescan_run = b.addRunArtifact(makescan_exe);
+    const makescan_c = makesrc_wf.addCopyFile(makescan_run.captureStdOut(.{}), "src/scancode.c");
     mod.addCSourceFile(.{
         .file = makescan_c,
         .flags = flags,

@@ -1,6 +1,7 @@
 const std = @import("std");
+const Build = std.Build;
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const awk_dep = b.dependency("mawk", .{});
@@ -188,13 +189,26 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(exe);
 
-    const fmt = b.addFmt(.{
-        .paths = &.{
-            "build.zig",
-            "build.zig.zon",
-        },
-    });
+    const fmt = addFmt(b);
     b.step("fmt", "zig fmt").dependOn(&fmt.step);
+}
+
+inline fn addFmt(b: *Build) *Build.Step.Fmt {
+    if (comptime @import("builtin").zig_version.order(std.SemanticVersion.parse("0.16.0") catch unreachable) == .gt) {
+        return b.addFmt(.{
+            .paths = &.{
+                b.path("build.zig"),
+                b.path("build.zig.zon"),
+            },
+        });
+    } else {
+        return b.addFmt(.{
+            .paths = &.{
+                "build.zig",
+                "build.zig.zon",
+            },
+        });
+    }
 }
 
 const flags = &.{

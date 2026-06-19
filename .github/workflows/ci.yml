@@ -27,9 +27,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: x86_64-linux-musl
-            arch_suffix: linux-x86_64
-            binutils: binutils
           - target: x86_64-linux-gnu
           - target: x86_64-linux-musl
           - target: aarch64-linux-gnu

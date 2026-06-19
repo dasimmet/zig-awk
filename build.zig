@@ -181,7 +181,6 @@ pub fn build(b: *Build) void {
         .root = awk_dep.path(""),
         .flags = flags,
     });
-    // mod.addIncludePath(b.path("src"));
 
     const exe = b.addExecutable(.{
         .name = "awk",

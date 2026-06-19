@@ -10,8 +10,34 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2.2.1
+      - name: Run fmt
+        run: zig build fmt
+      - name: check git diff
+        run: git diff --exit-code
+
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-linux-musl
+            arch_suffix: linux-x86_64
+            binutils: binutils
+          - target: x86_64-linux-gnu
+          - target: x86_64-linux-musl
+          - target: aarch64-linux-gnu
+          - target: aarch64-linux-musl
+          - target: x86_64-macos-none
+          - target: aarch64-macos-none
+          - target: x86_64-windows-gnu
+          - target: aarch64-windows-gnu
 
     steps:
       - name: Check out repository
@@ -20,28 +46,10 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v2.2.1
 
-      - name: Run fmt
-        run: zig build fmt
-
-      - name: check git diff
-        run: git diff --exit-code
-
-      - name: Run `build` linux gnu
-        run: zig build -Dtarget=x86_64-linux-gnu --prefix zig-out/x86_64-linux-gnu install
-
-      - name: Run `build` linux musl
-        run: zig build -Dtarget=x86_64-linux-musl --prefix zig-out/x86_64-linux-musl install
-
-      - name: Run `build` macos
-        run: zig build -Dtarget=x86_64-macos-none --prefix zig-out/x86_64-macos install
-
-      - name: Run `build` windows
-        run: zig build -Dtarget=x86_64-windows-gnu --prefix zig-out/x86_64-windows install
-
-      - name: check git diff
-        run: git diff --exit-code
+      - name: build
+        run: zig build "-Dtarget=${{ matrix.target }}" install
 
       - uses: actions/upload-artifact@v4
         with:
-          name: awk
+          name: "awk-${{ matrix.target }}"
           path: zig-out/*

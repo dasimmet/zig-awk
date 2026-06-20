@@ -21,6 +21,8 @@ jobs:
         run: zig build fmt
       - name: check git diff
         run: git diff --exit-code
+      - name: Check version
+        run: zig build version-check
 
   build:
     runs-on: ubuntu-latest

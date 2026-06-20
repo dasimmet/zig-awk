@@ -5,6 +5,8 @@ pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const awk_dep = b.dependency("mawk", .{});
+    const version = std.SemanticVersion.parse(@import("build.zig.zon").version) catch unreachable;
+
     const mod = b.addModule("awk", .{
         .target = target,
         .optimize = optimize,
@@ -187,6 +189,18 @@ pub fn build(b: *Build) void {
         .root_module = mod,
     });
     b.installArtifact(exe);
+
+    const version_check = b.addRunArtifact(exe);
+    version_check.addArg("-Wversion");
+    version_check.addCheck(.{
+        .expect_stdout_match = b.fmt("mawk {d}.{d}.{d} {s}", .{
+            version.major,
+            version.minor,
+            version.patch,
+            version.pre.?,
+        }),
+    });
+    b.step("version-check", "run awk and check the version output").dependOn(&version_check.step);
 
     const fmt = addFmt(b);
     b.step("fmt", "zig fmt").dependOn(&fmt.step);
